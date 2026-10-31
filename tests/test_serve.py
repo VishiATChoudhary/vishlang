@@ -82,3 +82,9 @@ def test_router_caches_per_profile_and_reports_untrained():
     assert loads == ["default", "work"]
     msg = r.rewrite(long, "cold")
     assert msg.startswith("vishlang: profile 'cold' is not trained") and "default" in msg and "work" in msg
+
+
+def test_router_rejects_bad_profile_name_without_loading():
+    r = ProfileRouter(lambda name: (_ for _ in ()).throw(AssertionError("loaded")), available=lambda: ["default"])
+    msg = r.rewrite("one two three four five six seven eight nine ten.", "../evil")
+    assert msg.startswith("vishlang: invalid profile name")

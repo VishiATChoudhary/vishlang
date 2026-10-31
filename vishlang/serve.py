@@ -70,7 +70,11 @@ class ProfileRouter:
         return sorted(p.name for p in root.iterdir() if p.is_dir() and Profile.load(p.name).trained) if root.is_dir() else []
 
     def rewrite(self, text: str, profile: str | None = None) -> str:
+        from .paths import valid_name
+
         name = profile or self.default
+        if not valid_name(name):
+            return f"vishlang: invalid profile name {name!r}. Run `vishlang profiles` to see the available ones."
         if name not in self.cache:
             self.cache[name] = self.load(name)
         if self.cache[name] is None:

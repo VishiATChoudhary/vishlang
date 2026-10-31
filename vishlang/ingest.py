@@ -245,7 +245,7 @@ def parse_chatgpt(path: Path) -> list[Para]:
 # ---------------------------------------------------------------- claude code history
 _HARNESS_PREFIX = ("<", "[", "Stop hook", "Another Claude session sent a message",
                    "The coordinator sent a message", "Goal check-in",
-                   "# AGENTS.md")  # notifications, interrupts, hooks, agents, Codex repo instructions
+                   "# AGENTS.md", "{")  # notifications, hooks, agents, Codex repo instructions, app JSON
 _IMAGE_TOKEN = re.compile(r"\s*\[Image #\d+\]")
 _TAG_BLOCKS = re.compile(r"<(system-reminder|pasted_content)\b[^>]*>.*?</\1>", re.S)
 
@@ -287,8 +287,15 @@ def parse_claude(path: Path, max_words: int = 200) -> list[Para]:
 def parse_codex(path: Path, max_words: int = 200) -> list[Para]:
     """Prompts typed into Codex CLI. Rollout files hold response_item/message rows; keep role user,
     content input_text. Same harness filters as Claude Code."""
-    out = []
+    out, seen = [], set()
     with path.open(encoding="utf-8", errors="replace") as fh:
+        try:
+            meta = json.loads(fh.readline() or "{}")
+        except json.JSONDecodeError:
+            meta = {}
+        if meta.get("type") == "session_meta" and isinstance((meta.get("payload") or {}).get("source"), dict):
+            return []  # subagent rollout: replays the parent's prompts
+        fh.seek(0)
         for line in fh:
             if '"role": "user"' not in line and '"role":"user"' not in line:
                 continue
@@ -301,8 +308,9 @@ def parse_codex(path: Path, max_words: int = 200) -> list[Para]:
                 continue
             parts = [c.get("text", "") for c in p.get("content", []) if isinstance(c, dict) and c.get("type") == "input_text"]
             text = _IMAGE_TOKEN.sub("", _TAG_BLOCKS.sub("", "\n".join(parts))).strip()
-            if not text or text.startswith(_HARNESS_PREFIX) or len(text.split()) > max_words:
-                continue
+            if not text or text.startswith(_HARNESS_PREFIX) or len(text.split()) > max_words or text in seen:
+                continue  # resumed sessions replay earlier prompts; keep one per file
+            seen.add(text)
             out.append(Para(text, "codex", (o.get("timestamp") or "")[:16]))
     return out
 

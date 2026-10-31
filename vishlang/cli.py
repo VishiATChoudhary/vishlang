@@ -5,7 +5,7 @@ from collections import Counter
 from pathlib import Path
 
 from .config import load_config
-from .paths import Profile, home
+from .paths import Profile, home, valid_name
 
 PROFILE_TOML = '''[author]
 names = [{names}]    # display names as they appear in WhatsApp exports
@@ -200,18 +200,28 @@ def _build(args, cfg, prof: Profile) -> int:
         rc = fn(argparse.Namespace(**ns), cfg, prof)
         if rc:
             return rc
+        if fn is _ingest and prof.corpus_size == 0:
+            print(f"corpus is empty, nothing to train on. Drop exports into {prof.raw} "
+                  f"or check the source paths in {prof.toml}.")
+            return 1
     return 0
+
+
+def _profile_name(value: str) -> str:
+    if not valid_name(value):
+        raise argparse.ArgumentTypeError(f"invalid profile name {value!r}: letters, digits, - and _ only")
+    return value
 
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="vishlang")
-    ap.add_argument("--profile", default=os.environ.get("VISHLANG_PROFILE", "default"),
+    ap.add_argument("--profile", type=_profile_name, default=os.environ.get("VISHLANG_PROFILE", "default"),
                     help="tone profile under ~/.vishlang/profiles (default: default)")
     ap.add_argument("--config", default=None, help="override the profile's profile.toml")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("init", help="create a profile: config + raw drop folder")
-    p.add_argument("name", nargs="?", default=None)
+    p.add_argument("name", nargs="?", default=None, type=_profile_name)
     p.add_argument("--name", dest="author_name", action="append", default=[], help="your display name (repeatable)")
     p.add_argument("--email", action="append", default=[], help="your sending address (repeatable)")
     p.set_defaults(fn=_init)

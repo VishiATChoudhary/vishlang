@@ -34,7 +34,7 @@ does the rest through a skill: it can train profiles and it can call them.
 - `vishlang init <name> [--name N --email E]` creates a profile and prints where to drop exports.
 - CLI gets global `--profile` (env `VISHLANG_PROFILE`, default `default`). All data paths derive from it.
 - MCP tool `rewrite(text, profile="default")`. Server loads the base model once per profile on first
-  use and caches it. Fewshot mode stays as the untrained fallback.
+  use and caches it. An untrained profile answers with the list of trained profiles and the build command (ruling in the v1 ledger: no fewshot fallback).
 - `vishlang install` is idempotent: copies the skill, re-registers MCP in whichever of `claude` and
   `codex` exist on PATH, prints what it did.
 - Skill lives at `skills/vishlang/SKILL.md` in the repo (skills.sh layout) and is packaged into the

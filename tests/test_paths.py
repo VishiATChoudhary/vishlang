@@ -38,3 +38,12 @@ def test_profile_trained_flag(monkeypatch, tmp_path):
     (p.adapters / "20260101" / "adapters.safetensors").write_bytes(b"")
     p.latest.symlink_to(p.adapters / "20260101")
     assert Profile.load("x").trained is True
+
+
+def test_profile_dir_rejects_path_escapes(monkeypatch, tmp_path):
+    import pytest
+    monkeypatch.setenv("VISHLANG_HOME", str(tmp_path))
+    for bad in ("../evil", "/abs/path", "a/b", "", "x" * 65, "sp ace"):
+        with pytest.raises(ValueError):
+            profile_dir(bad)
+    assert profile_dir("work-2_v1") == tmp_path / "profiles" / "work-2_v1"

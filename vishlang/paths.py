@@ -1,5 +1,6 @@
 """Where a profile lives on disk. State root is $VISHLANG_HOME, default ~/.vishlang."""
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,7 +11,16 @@ def home() -> Path:
     return Path(os.environ.get("VISHLANG_HOME") or Path.home() / ".vishlang").expanduser()
 
 
+NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def valid_name(name: str) -> bool:
+    return bool(NAME_RE.match(name or ""))
+
+
 def profile_dir(name: str) -> Path:
+    if not valid_name(name):
+        raise ValueError(f"invalid profile name {name!r}: use letters, digits, - and _ (max 64)")
     return home() / "profiles" / name
 
 

@@ -28,3 +28,13 @@ def test_ingest_dir_walks_codex_path(tmp_path):
 def test_codex_default_path_and_weight():
     cfg = load_config("/nonexistent.toml")
     assert cfg["sources"]["codex"] == {"weight": 1.0, "before": "", "path": "~/.codex/sessions"}
+
+
+def test_parse_codex_dedupes_replayed_prompts_and_drops_json_wrapped_messages():
+    texts = [p.text for p in parse_codex(FIX / "codex" / "rollout.jsonl")]
+    assert texts.count("Bro this needs to work now! Like end to end!") == 1
+    assert not any(t.startswith("{") for t in texts)
+
+
+def test_parse_codex_skips_subagent_rollouts():
+    assert parse_codex(FIX / "codex" / "subagent.jsonl") == []

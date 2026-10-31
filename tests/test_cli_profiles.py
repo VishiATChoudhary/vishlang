@@ -54,3 +54,20 @@ def test_rewrite_uses_profile_adapter(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli, "_lm", fake)
     assert cli.main(["--profile", "work", "rewrite", "one two three four five six seven eight nine."]) == 0
     assert seen["adapter"] == str(Profile.load("work").latest)
+
+
+def test_build_stops_on_empty_corpus_before_loading_model(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("VISHLANG_HOME", str(tmp_path))
+    monkeypatch.setattr(cli, "_lm", lambda *a, **k: (_ for _ in ()).throw(AssertionError("model loaded")))
+    cli.main(["init", "empty"])
+    cfg = str(FIX / "cfg_all.toml")
+    assert cli.main(["--profile", "empty", "--config", cfg, "build"]) == 1
+    assert "corpus is empty" in capsys.readouterr().out
+
+
+def test_bad_profile_name_is_a_clean_error(monkeypatch, tmp_path, capsys):
+    import pytest
+    monkeypatch.setenv("VISHLANG_HOME", str(tmp_path))
+    with pytest.raises(SystemExit) as e:
+        cli.main(["--profile", "../evil", "profiles"])
+    assert e.value.code == 2

@@ -17,7 +17,29 @@ def test_train_config_values(tmp_path):
 def test_train_dry_run_writes_yaml_and_argv(tmp_path):
     argv = train(CFG, tmp_path / "pairs", tmp_path / "adapters", dry_run=True)
     assert argv[1:3] == ["-m", "mlx_lm.lora"] and argv[-1].endswith("train.yaml")
-    latest = tmp_path / "adapters" / "latest"
-    assert latest.is_symlink() and (latest / "train.yaml").exists()
-    text = (latest / "train.yaml").read_text()
+    from pathlib import Path
+    yaml = Path(argv[-1])
+    assert yaml.exists() and not (tmp_path / "adapters" / "latest").exists()
+    text = yaml.read_text()
     assert "rank: 16" in text and "learning_rate: 0.0001" in text and "self_attn.q_proj" in text
+
+
+def test_latest_only_moves_after_a_successful_run(tmp_path, monkeypatch):
+    import subprocess
+    import pytest
+
+    adapters = tmp_path / "adapters"
+    (adapters / "old").mkdir(parents=True)
+    (adapters / "latest").symlink_to("old")
+
+    def boom(argv, check):
+        raise subprocess.CalledProcessError(1, argv)
+
+    monkeypatch.setattr(subprocess, "run", boom)
+    with pytest.raises(subprocess.CalledProcessError):
+        train(CFG, tmp_path / "pairs", adapters)
+    assert (adapters / "latest").resolve() == (adapters / "old").resolve()
+
+    monkeypatch.setattr(subprocess, "run", lambda argv, check: None)
+    out = train(CFG, tmp_path / "pairs", adapters)
+    assert (adapters / "latest").resolve() == out.resolve()

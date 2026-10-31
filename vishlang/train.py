@@ -57,13 +57,12 @@ def train(cfg: dict, data_dir: Path = Path("data/pairs"), adapters_root: Path = 
     yaml_path = adapter_dir / "train.yaml"
     write_yaml(train_config(cfg["model"]["base"], data_dir, adapter_dir, iters), yaml_path)
 
+    argv = [sys.executable, "-m", "mlx_lm.lora", "-c", str(yaml_path)]
+    if dry_run:
+        return argv
+    subprocess.run(argv, check=True)  # latest moves only after a successful run
     latest = adapters_root / "latest"
     if latest.is_symlink() or latest.exists():
         latest.unlink()
     latest.symlink_to(adapter_dir.name)
-
-    argv = [sys.executable, "-m", "mlx_lm.lora", "-c", str(yaml_path)]
-    if dry_run:
-        return argv
-    subprocess.run(argv, check=True)
     return adapter_dir
