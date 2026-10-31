@@ -58,6 +58,44 @@ def _train(args, cfg) -> int:
     return 0
 
 
+def _serve(args, cfg) -> int:
+    from .serve import build_system, make_server, mcp_add_command
+
+    if args.print_config:
+        print(mcp_add_command(args.mode))
+        return 0
+    adapter = args.adapter if args.mode == "lora" else None
+    lm = _lm(cfg, adapter)
+    make_server(lm, build_system(args.mode)).run()
+    return 0
+
+
+def _test(args, cfg) -> int:
+    from .blind import report, run_blind
+    from .clean import read_jsonl
+    from .serve import build_system
+
+    adapter = args.adapter if args.mode == "lora" else None
+    lm = _lm(cfg, adapter)
+    hold = read_jsonl(Path(args.holdout))
+    if not hold:
+        print(f"no holdout at {args.holdout}; run `vishlang ingest` first")
+        return 1
+    r = run_blind(lm, hold, build_system(args.mode), n=args.n)
+    print(report(r, args.mode))
+    return 0 if r["passed"] else 1
+
+
+def _build(args, cfg) -> int:
+    for fn, ns in ((_ingest, {"raw": "data/raw", "out": "data"}),
+                   (_pairs, {"corpus": "data/corpus.jsonl", "out": "data/pairs", "sample": 0, "limit": None}),
+                   (_train, {"data": "data/pairs", "adapters": "adapters", "iters": args.iters})):
+        rc = fn(argparse.Namespace(**ns), cfg)
+        if rc:
+            return rc
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="vishlang")
     ap.add_argument("--config", default="vishlang.toml")
@@ -80,6 +118,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--adapters", default="adapters")
     p.add_argument("--iters", type=int, default=1000)
     p.set_defaults(fn=_train)
+
+    p = sub.add_parser("serve", help="run the MCP server (stdio)")
+    p.add_argument("--mode", choices=["lora", "fewshot"], default="lora")
+    p.add_argument("--adapter", default="adapters/latest")
+    p.add_argument("--print-config", action="store_true", help="print the claude mcp add command and exit")
+    p.set_defaults(fn=_serve)
+
+    p = sub.add_parser("test", help="blind A/B on held-out paragraphs")
+    p.add_argument("--mode", choices=["lora", "fewshot"], default="lora")
+    p.add_argument("--adapter", default="adapters/latest")
+    p.add_argument("--holdout", default="data/holdout.jsonl")
+    p.add_argument("--n", type=int, default=20)
+    p.set_defaults(fn=_test)
+
+    p = sub.add_parser("build", help="ingest, pairs, train in sequence")
+    p.add_argument("--iters", type=int, default=1000)
+    p.set_defaults(fn=_build)
     return ap
 
 
