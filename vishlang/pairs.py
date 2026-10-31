@@ -30,6 +30,15 @@ _REPLY = re.compile(r"(could you (please )?clarify|what you mean|assist you|i ap
                     r"let me know if|happy to help|as an ai)", re.I)
 
 
+_FILLER = re.compile(r"^(certainly|sure|of course|absolutely)[.,!]?\s+", re.I)
+
+
+def strip_filler(neutral: str) -> str:
+    """Drop an assistant-style opener and recapitalise the first letter."""
+    out = _FILLER.sub("", neutral, count=1)
+    return out[:1].upper() + out[1:] if out != neutral else neutral
+
+
 def usable_pair(neutral: str, original: str) -> bool:
     """Reject neutrals that were cut off or ran away; both would teach fact invention."""
     if not neutral or normalize(neutral) == normalize(original):
@@ -85,8 +94,8 @@ def build_pairs(corpus: Path, out_dir: Path, lm, cfg: dict, valid_frac: float = 
 
     usable = []
     for r in rows:
-        neutral = cache.get(_h(r["text"]))
-        if not usable_pair(neutral or "", r["text"]):
+        neutral = strip_filler(cache.get(_h(r["text"])) or "")
+        if not usable_pair(neutral, r["text"]):
             continue
         usable.append((r, make_example(neutral, r["text"])))
 

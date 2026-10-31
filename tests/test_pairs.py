@@ -118,3 +118,17 @@ def test_usable_pair_rejects_assistant_replies():
     assert usable_pair("Hmm, I'm not entirely sure what you mean. Could you clarify your request so I can better assist you?", orig) is False
     assert usable_pair("I apologize for the confusion, it appears the correct email was entered but nothing arrived.", orig) is False
     assert usable_pair("I entered the correct email address, yet the recipient did not receive anything.", orig) is True
+
+
+def test_build_pairs_strips_assistant_filler_openers(tmp_path):
+    from vishlang.pairs import strip_filler
+    assert strip_filler("Certainly. Please publish this content to GitHub.") == "Please publish this content to GitHub."
+    assert strip_filler("Certainly, could we discuss the plan?") == "Could we discuss the plan?"
+    assert strip_filler("Sure! Okay, so what is the next step?") == "Okay, so what is the next step?"
+    assert strip_filler("Please publish this content.") == "Please publish this content."
+    corpus = tmp_path / "corpus.jsonl"
+    _corpus(corpus, n=4)
+    build_pairs(corpus, tmp_path / "pairs", FakeLM(lambda s, u: "Certainly. n " + unwrap(u) + "."), CFG)
+    for split in ("train", "valid", "test"):
+        for row in read_jsonl(tmp_path / "pairs" / f"{split}.jsonl"):
+            assert not row["messages"][1]["content"].startswith("Certainly")
