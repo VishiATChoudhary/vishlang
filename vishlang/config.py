@@ -15,6 +15,7 @@ DEFAULTS = {
         "docs": dict(_SOURCE),
         "linkedin": dict(_SOURCE),
         "chatgpt": {"weight": 0.0, "before": ""},
+        "claude": {"weight": 1.0, "before": "", "path": "~/.claude/projects"},
     },
 }
 

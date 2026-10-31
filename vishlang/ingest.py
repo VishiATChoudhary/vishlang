@@ -110,6 +110,13 @@ def detect_format(path: Path) -> str | None:
         return "chatgpt"
     if path.name == "Shares.csv":
         return "linkedin"
+    if suffix == ".jsonl":
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            head = fh.readline()
+        try:
+            return "claude" if isinstance(json.loads(head), dict) and "type" in json.loads(head) else None
+        except json.JSONDecodeError:
+            return None
     if suffix in (".txt", ".md"):
         head = read_text(path).lstrip().split("\n", 1)[0]
         if suffix == ".txt" and _WA_LINE.match(head):
@@ -225,6 +232,42 @@ def parse_chatgpt(path: Path) -> list[Para]:
     return out
 
 
+# ---------------------------------------------------------------- claude code history
+_TAG_BLOCKS = re.compile(r"<(system-reminder|pasted_content)\b[^>]*>.*?</\1>", re.S)
+_CMD_PREFIX = ("<command-", "<local-command")
+
+
+def parse_claude(path: Path) -> list[Para]:
+    """Prompts Vishi typed into Claude Code. Tool results, subagent sidechains and
+    slash-command wrappers are dropped; harness tags are stripped."""
+    out = []
+    with path.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if '"type":"user"' not in line and '"type": "user"' not in line:
+                continue
+            try:
+                o = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if o.get("type") != "user" or o.get("isSidechain"):
+                continue
+            content = (o.get("message") or {}).get("content")
+            if isinstance(content, str):
+                text = content
+            elif isinstance(content, list):
+                parts = [c.get("text", "") for c in content if isinstance(c, dict) and c.get("type") == "text"]
+                if not parts:
+                    continue
+                text = "\n".join(parts)
+            else:
+                continue
+            text = _TAG_BLOCKS.sub("", text).strip()
+            if not text or text.startswith(_CMD_PREFIX):
+                continue
+            out.append(Para(text, "claude", (o.get("timestamp") or "")[:16]))
+    return out
+
+
 # ---------------------------------------------------------------- directory
 _PARSERS = {
     "whatsapp": lambda p, cfg: parse_whatsapp(p, set(cfg["author"]["names"]), cfg["clean"]["merge_minutes"]),
@@ -232,14 +275,25 @@ _PARSERS = {
     "docs": lambda p, cfg: parse_docs(p),
     "chatgpt": lambda p, cfg: parse_chatgpt(p),
     "linkedin": lambda p, cfg: parse_linkedin(p),
+    "claude": lambda p, cfg: parse_claude(p),
 }
+
+
+def _files(root: Path):
+    if not root.is_dir():
+        return
+    for path in sorted(root.rglob("*")):
+        if path.is_file() and not any(part.startswith(".") for part in path.relative_to(root).parts):
+            yield path
 
 
 def ingest_dir(raw: Path, cfg: dict) -> list[Para]:
     out: list[Para] = []
-    for path in sorted(raw.rglob("*")):
-        if not path.is_file() or any(part.startswith(".") for part in path.relative_to(raw).parts):
-            continue
+    roots = [raw]
+    claude_path = (cfg["sources"].get("claude") or {}).get("path") or ""
+    if claude_path and float(cfg["sources"]["claude"].get("weight", 1.0)) > 0:
+        roots.append(Path(claude_path).expanduser())
+    for path in (p for r in roots for p in _files(r)):
         fmt = detect_format(path)
         if fmt is None:
             continue

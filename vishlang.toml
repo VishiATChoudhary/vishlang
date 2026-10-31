@@ -28,3 +28,8 @@ before = ""
 [sources.chatgpt]
 weight = 0.0
 before = ""
+# Prompts you typed into Claude Code. Set path = "" to disable.
+[sources.claude]
+weight = 1.0
+before = ""
+path = "~/.claude/projects"
