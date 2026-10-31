@@ -7,3 +7,5 @@ weight = 0.0
 before = "2026-10"
 [sources.claude]
 path = ""
+[sources.codex]
+path = ""

@@ -114,9 +114,12 @@ def detect_format(path: Path) -> str | None:
         with path.open(encoding="utf-8", errors="replace") as fh:
             head = fh.readline()
         try:
-            return "claude" if isinstance(json.loads(head), dict) and "type" in json.loads(head) else None
+            o = json.loads(head)
         except json.JSONDecodeError:
             return None
+        if not isinstance(o, dict) or "type" not in o:
+            return None
+        return "codex" if "payload" in o else "claude"
     if suffix in (".txt", ".md"):
         head = read_text(path).lstrip().split("\n", 1)[0]
         if suffix == ".txt" and _WA_LINE.match(head):
@@ -241,7 +244,8 @@ def parse_chatgpt(path: Path) -> list[Para]:
 
 # ---------------------------------------------------------------- claude code history
 _HARNESS_PREFIX = ("<", "[", "Stop hook", "Another Claude session sent a message",
-                   "The coordinator sent a message", "Goal check-in")  # notifications, interrupts, hooks, agents
+                   "The coordinator sent a message", "Goal check-in",
+                   "# AGENTS.md")  # notifications, interrupts, hooks, agents, Codex repo instructions
 _IMAGE_TOKEN = re.compile(r"\s*\[Image #\d+\]")
 _TAG_BLOCKS = re.compile(r"<(system-reminder|pasted_content)\b[^>]*>.*?</\1>", re.S)
 
@@ -279,6 +283,30 @@ def parse_claude(path: Path, max_words: int = 200) -> list[Para]:
     return out
 
 
+# ---------------------------------------------------------------- codex history
+def parse_codex(path: Path, max_words: int = 200) -> list[Para]:
+    """Prompts typed into Codex CLI. Rollout files hold response_item/message rows; keep role user,
+    content input_text. Same harness filters as Claude Code."""
+    out = []
+    with path.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if '"role": "user"' not in line and '"role":"user"' not in line:
+                continue
+            try:
+                o = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            p = o.get("payload") or {}
+            if o.get("type") != "response_item" or p.get("type") != "message" or p.get("role") != "user":
+                continue
+            parts = [c.get("text", "") for c in p.get("content", []) if isinstance(c, dict) and c.get("type") == "input_text"]
+            text = _IMAGE_TOKEN.sub("", _TAG_BLOCKS.sub("", "\n".join(parts))).strip()
+            if not text or text.startswith(_HARNESS_PREFIX) or len(text.split()) > max_words:
+                continue
+            out.append(Para(text, "codex", (o.get("timestamp") or "")[:16]))
+    return out
+
+
 # ---------------------------------------------------------------- directory
 _PARSERS = {
     "whatsapp": lambda p, cfg: parse_whatsapp(p, set(cfg["author"]["names"]), cfg["clean"]["merge_minutes"]),
@@ -287,6 +315,7 @@ _PARSERS = {
     "chatgpt": lambda p, cfg: parse_chatgpt(p),
     "linkedin": lambda p, cfg: parse_linkedin(p),
     "claude": lambda p, cfg: parse_claude(p),
+    "codex": lambda p, cfg: parse_codex(p),
 }
 
 
@@ -301,9 +330,10 @@ def _files(root: Path):
 def ingest_dir(raw: Path, cfg: dict) -> list[Para]:
     out: list[Para] = []
     roots = [(raw, None)]
-    claude_path = (cfg["sources"].get("claude") or {}).get("path") or ""
-    if claude_path and float(cfg["sources"]["claude"].get("weight", 1.0)) > 0:
-        roots.append((Path(claude_path).expanduser(), "claude"))  # only session files from there
+    for name in ("claude", "codex"):  # agent histories: only session files from there
+        src = cfg["sources"].get(name) or {}
+        if src.get("path") and float(src.get("weight", 1.0)) > 0:
+            roots.append((Path(src["path"]).expanduser(), name))
     for path, only in ((p, only) for r, only in roots for p in _files(r)):
         fmt = detect_format(path)
         if fmt is None or (only and fmt != only):
