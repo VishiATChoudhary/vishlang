@@ -50,6 +50,14 @@ def _pairs(args, cfg) -> int:
     return 0
 
 
+def _train(args, cfg) -> int:
+    from .train import train
+
+    out = train(cfg, Path(args.data), Path(args.adapters), iters=args.iters)
+    print(f"adapter -> {out}  (adapters/latest points here)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="vishlang")
     ap.add_argument("--config", default="vishlang.toml")
@@ -66,6 +74,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sample", type=int, default=0, help="only print N original/neutral pairs to eyeball")
     p.add_argument("--limit", type=int, default=None, help="neutralise at most N new paragraphs this run")
     p.set_defaults(fn=_pairs)
+
+    p = sub.add_parser("train", help="QLoRA fine-tune with mlx_lm.lora")
+    p.add_argument("--data", default="data/pairs")
+    p.add_argument("--adapters", default="adapters")
+    p.add_argument("--iters", type=int, default=1000)
+    p.set_defaults(fn=_train)
     return ap
 
 
