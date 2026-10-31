@@ -50,3 +50,34 @@ Content-Type: text/html; charset="utf-8"
 <html><body><p>Hello Anna,</p><p>Thanks for the notes on the parser, I will go through them tonight.</p></body></html>
 --b1--
 
+From 5@xxx Tue Oct 28 13:00:00 2026
+From: Vishi <vishisht@invertix.ai>
+To: Anna <anna@x.com>
+Subject: Re: wrapped header
+Date: Tue, 28 Oct 2026 13:00:00 +0100
+X-Gmail-Labels: Sent
+Content-Type: text/plain; charset="utf-8"
+
+Short answer is yes, the wrapped header case is the one that bit us in the first export, so this message exists to pin it.
+
+On Tue, Oct 28, 2026 at 12:30 PM Anna Mustermann
+<anna@x.com> wrote:
+> can you confirm the wrapped case
+
+From 6@xxx Tue Oct 28 14:00:00 2026
+From: Vishi <vishisht@invertix.ai>
+To: Bob <bob@x.com>
+Subject: Fwd: forwarded thing
+Date: Tue, 28 Oct 2026 14:00:00 +0100
+X-Gmail-Labels: Sent
+Content-Type: text/plain; charset="utf-8"
+
+Forwarding this to you because the second paragraph is exactly what we discussed on the call yesterday.
+
+---------- Forwarded message ---------
+From: Carol <carol@x.com>
+Date: Tue, 28 Oct 2026 at 13:45
+Subject: forwarded thing
+
+Carol wrote all of this and none of it belongs in the corpus.
+

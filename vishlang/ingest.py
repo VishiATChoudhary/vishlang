@@ -128,8 +128,11 @@ def detect_format(path: Path) -> str | None:
 # ---------------------------------------------------------------- gmail mbox
 
 _CUT = re.compile(
-    r"^(On .+wrote:\s*|Am .+schrieb.*:\s*|-- ?|_{5,}|From: .*|Von: .*|Sent from my.*|Gesendet von .*)$"
+    r"^(On .+wrote:\s*|Am .+schrieb.*:\s*|-- ?|_{5,}|From: .*|Von: .*|Sent from my.*|Gesendet von .*|"
+    r"-{3,} ?(Forwarded message|Weitergeleitete Nachricht) ?-{3,}|Begin forwarded message:|Anfang der weitergeleiteten Nachricht:)$"
 )
+# Gmail wraps the reply header at ~76 columns: "On <date> <name>\n<email> wrote:"
+_WRAPPED_CUT = re.compile(r"^(On |Am )[^\n]*\n[^\n]{0,120}(wrote|schrieb)[^\n]*:\s*$", re.M)
 
 
 class _Text(HTMLParser):
@@ -181,8 +184,12 @@ def _body(msg) -> str:
 
 
 def _strip_reply(body: str) -> str:
+    body = body.replace("\r\n", "\n")
+    m = _WRAPPED_CUT.search(body)
+    if m:
+        body = body[:m.start()]
     kept = []
-    for line in body.replace("\r\n", "\n").split("\n"):
+    for line in body.split("\n"):
         if _CUT.match(line.strip()):
             break
         if line.lstrip().startswith(">"):
@@ -233,7 +240,9 @@ def parse_chatgpt(path: Path) -> list[Para]:
 
 
 # ---------------------------------------------------------------- claude code history
-_HARNESS_PREFIX = ("<", "[", "Stop hook")  # notifications, interrupts, hook output
+_HARNESS_PREFIX = ("<", "[", "Stop hook", "Another Claude session sent a message",
+                   "The coordinator sent a message", "Goal check-in")  # notifications, interrupts, hooks, agents
+_IMAGE_TOKEN = re.compile(r"\s*\[Image #\d+\]")
 _TAG_BLOCKS = re.compile(r"<(system-reminder|pasted_content)\b[^>]*>.*?</\1>", re.S)
 
 
@@ -251,7 +260,7 @@ def parse_claude(path: Path, max_words: int = 200) -> list[Para]:
                 o = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if o.get("type") != "user" or o.get("isSidechain"):
+            if o.get("type") != "user" or o.get("isSidechain") or o.get("isMeta") or o.get("isCompactSummary"):
                 continue
             content = (o.get("message") or {}).get("content")
             if isinstance(content, str):
@@ -263,7 +272,7 @@ def parse_claude(path: Path, max_words: int = 200) -> list[Para]:
                 text = "\n".join(parts)
             else:
                 continue
-            text = _TAG_BLOCKS.sub("", text).strip()
+            text = _IMAGE_TOKEN.sub("", _TAG_BLOCKS.sub("", text)).strip()
             if not text or text.startswith(_HARNESS_PREFIX) or len(text.split()) > max_words:
                 continue
             out.append(Para(text, "claude", (o.get("timestamp") or "")[:16]))

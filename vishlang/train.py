@@ -13,6 +13,7 @@ def train_config(base: str, data_dir: Path, adapter_dir: Path, iters: int = 1000
         "train": True,
         "data": str(data_dir),
         "fine_tune_type": "lora",
+        "mask_prompt": True,  # loss on the assistant turn only, never on the neutral input
         "num_layers": 16,
         "batch_size": 2,
         "iters": iters,

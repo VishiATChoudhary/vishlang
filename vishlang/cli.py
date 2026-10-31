@@ -77,11 +77,12 @@ def _test(args, cfg) -> int:
 
     adapter = args.adapter if args.mode == "lora" else None
     lm = _lm(cfg, adapter)
+    base_lm = _lm(cfg) if adapter else lm
     hold = read_jsonl(Path(args.holdout))
     if not hold:
         print(f"no holdout at {args.holdout}; run `vishlang ingest` first")
         return 1
-    r = run_blind(lm, hold, build_system(args.mode), n=args.n)
+    r = run_blind(lm, hold, build_system(args.mode), n=args.n, base_lm=base_lm)
     print(report(r, args.mode))
     return 0 if r["passed"] else 1
 

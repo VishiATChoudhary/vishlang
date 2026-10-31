@@ -11,12 +11,31 @@ from .ingest import Para
 _DE = {"und", "der", "die", "das", "ich", "nicht", "ist", "auch", "mit", "ein", "eine", "wir", "du", "dass", "aber"}
 _EN = {"the", "and", "is", "to", "of", "that", "you", "with", "for", "this", "not", "are", "but", "have"}
 _WORD = re.compile(r"[\wÄÖÜäöüß']+")
-TEMPLATE_REPEATS = 5
-TEMPLATE_PREFIX_WORDS = 8
+# Two passes: a long prefix repeated a few times, or a short prefix repeated many times.
+TEMPLATE_RULES = ((8, 5), (4, 10))  # (prefix words, max repeats allowed)
 
 
-def _prefix(text: str) -> str:
-    return " ".join(text.lower().split()[:TEMPLATE_PREFIX_WORDS])
+def _prefix(text: str, words: int) -> str:
+    return " ".join(text.lower().split()[:words])
+
+
+def _short_lines(block: str) -> bool:
+    """Signature-like: most lines are 4 words or fewer (name, title, phone, URL)."""
+    lines = [l for l in block.split("\n") if l.strip()]
+    return len(lines) >= 2 and sum(len(l.split()) <= 4 for l in lines) / len(lines) >= 0.5
+
+
+def trim_frame(text: str) -> str:
+    """Drop leading/trailing greeting, sign-off and signature paragraphs so training
+    targets match what serve-time rewrite sends to the model: the prose body only."""
+    from .serve import _is_prose
+
+    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    while paras and (not _is_prose(paras[0]) or _short_lines(paras[0])):
+        paras.pop(0)
+    while paras and (not _is_prose(paras[-1]) or _short_lines(paras[-1])):
+        paras.pop()
+    return "\n\n".join(paras)
 
 
 def chunk(text: str, max_words: int = 150) -> list[str]:
@@ -57,13 +76,14 @@ def clean(paras: list[Para], cfg: dict) -> tuple[list[dict], dict]:
     stats = {"min_words": 0, "url_heavy": 0, "dupe": 0, "template": 0, "ai_score": 0}
     seen: set[str] = set()
     out: list[dict] = []
-    # Programmatic prompts share a long opening; a human rarely starts 6+ messages identically.
-    prefix_counts = Counter(_prefix(p.text) for p in paras)
+    # Programmatic prompts share an opening; a human rarely starts many messages identically.
+    counts = {w: Counter(_prefix(p.text, w) for p in paras) for w, _ in TEMPLATE_RULES}
     for para in paras:
-        if prefix_counts[_prefix(para.text)] > TEMPLATE_REPEATS:
+        if any(counts[w][_prefix(para.text, w)] > limit for w, limit in TEMPLATE_RULES):
             stats["template"] += 1
             continue
-        for text in chunk(para.text):
+        body = trim_frame(para.text) if para.source != "whatsapp" else para.text
+        for text in chunk(body or para.text):  # nothing left after trimming: let min_words count it
             if len(text.split()) < c["min_words"]:
                 stats["min_words"] += 1
                 continue

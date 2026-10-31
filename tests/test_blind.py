@@ -34,3 +34,11 @@ def test_run_blind_shows_both_versions_in_random_order():
 
     run_blind(_lm(), HOLD, "rw-sys", n=4, ask=ask, rng_seed=3)
     assert orders == {True, False}
+
+
+def test_run_blind_neutralises_with_base_lm_when_given():
+    base = FakeLM(lambda s, u: "NEUTRAL " + u)
+    tuned = FakeLM(lambda s, u: "MINE " + u)
+    run_blind(tuned, HOLD, "rw-sys", n=4, ask=lambda p: "1", base_lm=base)
+    assert len(base.calls) == 4 and all("generic AI assistant" in s for s, _ in base.calls)
+    assert len(tuned.calls) == 4 and all(s == "rw-sys" for s, _ in tuned.calls)

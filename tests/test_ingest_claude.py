@@ -5,10 +5,10 @@ from tests.conftest import FIX
 
 def test_parse_claude_keeps_only_typed_prompts():
     paras = parse_claude(FIX / "claude" / "session.jsonl")
-    assert len(paras) == 2
+    assert len(paras) == 3
     assert paras[0].text.startswith("Bro, how can we make this as easy as possible?")
     assert paras[1].text.startswith("Oh just build that shape") and "system-reminder" not in paras[1].text
-    assert all(p.source == "claude" and p.date.startswith("2026-10-30T10:0") for p in paras)
+    assert all(p.source == "claude" and p.date.startswith("2026-10-30T10:") for p in paras)
 
 
 def test_detect_format_claude():
@@ -20,7 +20,7 @@ def test_ingest_dir_walks_claude_path(tmp_path):
     cfg = load_config(FIX / "cfg_all.toml")
     cfg["sources"]["claude"]["path"] = str(FIX / "claude")
     paras = ingest_dir(tmp_path / "raw", cfg)
-    assert [p.source for p in paras] == ["claude", "claude"]
+    assert [p.source for p in paras] == ["claude", "claude", "claude"]
 
 
 def test_claude_path_only_takes_session_files(tmp_path):
@@ -35,9 +35,19 @@ def test_parse_claude_drops_harness_messages_and_long_pastes():
     texts = [p.text for p in parse_claude(FIX / "claude" / "session.jsonl")]
     assert not any(t.startswith("<") for t in texts)
     assert not any("pasted answer text" in t for t in texts)
-    assert len(texts) == 2
+    assert len(texts) == 3
 
 
 def test_parse_claude_drops_hook_feedback_and_interrupts():
     texts = [p.text for p in parse_claude(FIX / "claude" / "session.jsonl")]
-    assert len(texts) == 2 and not any(t.startswith(("Stop hook", "[")) for t in texts)
+    assert len(texts) == 3 and not any(t.startswith(("Stop hook", "[")) for t in texts)
+
+
+def test_parse_claude_drops_meta_compact_teammate_goal_and_strips_image_tokens():
+    paras = parse_claude(FIX / "claude" / "session.jsonl")
+    texts = [p.text for p in paras]
+    assert len(texts) == 3
+    joined = "\n".join(texts)
+    for bad in ["Base directory", "being continued", "Another Claude session", "Goal check-in", "[Image #1]"]:
+        assert bad not in joined, bad
+    assert texts[2] == "Look at this screenshot and tell me what the error in the footer is about!"

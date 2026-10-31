@@ -8,3 +8,8 @@
 {"type": "assistant", "timestamp": "2026-10-30T10:05:00.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "Sure, building now."}]}}
 {"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:06:00.000Z", "message": {"role": "user", "content": "Stop hook feedback:\n[condition]: The condition text is truncated and has no checkable completion criterion."}}
 {"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:07:00.000Z", "message": {"role": "user", "content": "[Request interrupted by user for tool use]"}}
+{"type": "user", "isSidechain": false, "isMeta": true, "timestamp": "2026-10-30T10:08:00.000Z", "message": {"role": "user", "content": "Base directory for this skill: /Users/x/.claude/skills/foo and a lot of injected skill text follows here"}}
+{"type": "user", "isSidechain": false, "isCompactSummary": true, "timestamp": "2026-10-30T10:09:00.000Z", "message": {"role": "user", "content": "This session is being continued from a previous conversation that ran out of context, summary follows here."}}
+{"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:10:00.000Z", "message": {"role": "user", "content": "Another Claude session sent a message:\n<teammate-message from=\"x\">please merge the branch when the suite is green</teammate-message>"}}
+{"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:11:00.000Z", "message": {"role": "user", "content": "Goal check-in: \u00abship the parser\u00bb has the condition been met yet, answer in one line please"}}
+{"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:12:00.000Z", "message": {"role": "user", "content": "Look at this screenshot and tell me what the error in the footer is about!\n[Image #1]"}}

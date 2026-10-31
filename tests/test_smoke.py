@@ -30,3 +30,10 @@ def test_skill_and_readme_exist():
     for must in ["vishlang ingest", "vishlang pairs --sample 20", "vishlang test --mode fewshot",
                  "vishlang train", "vishlang serve --print-config", "takeout.google.com", "before"]:
         assert must in readme, must
+
+
+def test_lexicon_is_tracked_by_git():
+    import subprocess
+    root = Path(__file__).resolve().parent.parent
+    r = subprocess.run(["git", "ls-files", "--error-unmatch", "vishlang/data/excess_words.csv"], cwd=root, capture_output=True)
+    assert r.returncode == 0, "excess_words.csv is not committed; a fresh clone cannot import vishlang.detect"

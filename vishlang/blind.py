@@ -12,12 +12,15 @@ PASS_FRACTION = 0.75
 
 
 def run_blind(lm, holdout: list[dict], system: str, n: int = 20, ask: Callable[[str], str] = input,
-              rng_seed: int = 0) -> dict:
+              rng_seed: int = 0, base_lm=None) -> dict:
+    """base_lm neutralises; lm rewrites. In lora mode they must differ, or the adapter
+    colours the "neutral" side too and the A/B compares two tuned outputs."""
+    base_lm = base_lm or lm
     rng = random.Random(rng_seed)
     items = rng.sample(holdout, min(n, len(holdout)))
     hits, ai_n, ai_r, ratios = 0, [], [], []
     for i, row in enumerate(items, 1):
-        neutral = neutralise(lm, row["text"])
+        neutral = neutralise(base_lm, row["text"])
         rw = rewrite_text(lm, neutral, system)
         ai_n.append(ai_score(neutral))
         ai_r.append(ai_score(rw))

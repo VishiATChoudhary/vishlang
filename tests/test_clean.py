@@ -71,3 +71,17 @@ def test_clean_drops_templated_prompts_sharing_a_long_prefix():
     paras.append(Para(HUMAN, "claude", ""))
     out, stats = clean(paras, load_config(FIX / "cfg.toml"))
     assert [r["text"] for r in out] == [HUMAN] and stats["template"] == 6
+
+
+def test_clean_drops_scripted_prompts_with_varying_entity_in_prefix():
+    paras = [Para(f"You previously concluded: entity {i} equals entity {i} in some cancer type, the evidence is now exactly this", "claude", "") for i in range(12)]
+    paras.append(Para(HUMAN, "claude", ""))
+    out, stats = clean(paras, load_config(FIX / "cfg.toml"))
+    assert [r["text"] for r in out] == [HUMAN] and stats["template"] == 12
+
+
+def test_clean_trims_greeting_signoff_and_signature_from_email():
+    body = "Thanks for the notes, I went through them on the train and most of it is already handled by the merge window."
+    mail = f"Hi Anna,\n\n{body}\n\nBest,\nVishi\nInvertix GmbH\n+49 170 0000000\nwww.invertix.ai"
+    out, _ = clean([Para(mail, "gmail", "")], load_config(FIX / "cfg.toml"))
+    assert [r["text"] for r in out] == [body]

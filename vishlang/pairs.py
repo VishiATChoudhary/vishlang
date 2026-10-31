@@ -8,12 +8,45 @@ import json
 import random
 from pathlib import Path
 
-from .clean import read_jsonl, write_jsonl
+from .clean import read_jsonl, write_jsonl  # noqa: F401  (read_jsonl kept for callers)
 from .prompts import NEUTRALISE_SYSTEM, REWRITE_SYSTEM
 
 
+def neutral_budget(text: str) -> int:
+    """German runs 2 to 2.5 tokens per word and the neutral register is wordier."""
+    return 4 * len(text.split()) + 128
+
+
 def neutralise(lm, text: str) -> str:
-    return lm.chat(NEUTRALISE_SYSTEM, text, max_tokens=max(64, int(len(text.split()) * 3)), temp=0.3)
+    return lm.chat(NEUTRALISE_SYSTEM, text, max_tokens=neutral_budget(text), temp=0.3)
+
+
+_TERMINAL = tuple(".!?\"'\u201d)")
+RATIO_MIN, RATIO_MAX = 0.5, 2.5
+
+
+def usable_pair(neutral: str, original: str) -> bool:
+    """Reject neutrals that were cut off or ran away; both would teach fact invention."""
+    if not neutral or neutral.strip() == original.strip():
+        return False
+    if not neutral.rstrip().endswith(_TERMINAL):
+        return False
+    ratio = len(neutral.split()) / max(1, len(original.split()))
+    return RATIO_MIN <= ratio <= RATIO_MAX
+
+
+def _load_cache(path: Path) -> dict:
+    cache = {}
+    if not path.exists():
+        return cache
+    with path.open(encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+                cache[r["h"]] = r["neutral"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue  # a kill mid-write leaves one partial line; that item is redone
+    return cache
 
 
 def make_example(neutral: str, original: str) -> dict:
@@ -31,7 +64,7 @@ def build_pairs(corpus: Path, out_dir: Path, lm, cfg: dict, valid_frac: float = 
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = read_jsonl(corpus)
     cache_path = out_dir / "neutral.jsonl"
-    cache = {r["h"]: r["neutral"] for r in read_jsonl(cache_path)}
+    cache = _load_cache(cache_path)
 
     todo = [r for r in rows if _h(r["text"]) not in cache]
     if limit is not None:
@@ -48,7 +81,7 @@ def build_pairs(corpus: Path, out_dir: Path, lm, cfg: dict, valid_frac: float = 
     usable = []
     for r in rows:
         neutral = cache.get(_h(r["text"]))
-        if not neutral or neutral.strip() == r["text"].strip():
+        if not usable_pair(neutral or "", r["text"]):
             continue
         usable.append((r, make_example(neutral, r["text"])))
 
