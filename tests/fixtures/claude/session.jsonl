@@ -6,3 +6,5 @@
 {"type": "user", "isSidechain": true, "timestamp": "2026-10-30T10:03:00.000Z", "message": {"role": "user", "content": "You are a talented software engineer. Read the design document and report questions."}}
 {"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:04:00.000Z", "message": {"role": "user", "content": "<command-name>/caveman</command-name><command-args>full</command-args>"}}
 {"type": "assistant", "timestamp": "2026-10-30T10:05:00.000Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "Sure, building now."}]}}
+{"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:06:00.000Z", "message": {"role": "user", "content": "Stop hook feedback:\n[condition]: The condition text is truncated and has no checkable completion criterion."}}
+{"type": "user", "isSidechain": false, "timestamp": "2026-10-30T10:07:00.000Z", "message": {"role": "user", "content": "[Request interrupted by user for tool use]"}}

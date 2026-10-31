@@ -36,3 +36,8 @@ def test_parse_claude_drops_harness_messages_and_long_pastes():
     assert not any(t.startswith("<") for t in texts)
     assert not any("pasted answer text" in t for t in texts)
     assert len(texts) == 2
+
+
+def test_parse_claude_drops_hook_feedback_and_interrupts():
+    texts = [p.text for p in parse_claude(FIX / "claude" / "session.jsonl")]
+    assert len(texts) == 2 and not any(t.startswith(("Stop hook", "[")) for t in texts)

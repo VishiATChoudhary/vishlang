@@ -233,6 +233,7 @@ def parse_chatgpt(path: Path) -> list[Para]:
 
 
 # ---------------------------------------------------------------- claude code history
+_HARNESS_PREFIX = ("<", "[", "Stop hook")  # notifications, interrupts, hook output
 _TAG_BLOCKS = re.compile(r"<(system-reminder|pasted_content)\b[^>]*>.*?</\1>", re.S)
 
 
@@ -263,7 +264,7 @@ def parse_claude(path: Path, max_words: int = 200) -> list[Para]:
             else:
                 continue
             text = _TAG_BLOCKS.sub("", text).strip()
-            if not text or text.startswith("<") or len(text.split()) > max_words:
+            if not text or text.startswith(_HARNESS_PREFIX) or len(text.split()) > max_words:
                 continue
             out.append(Para(text, "claude", (o.get("timestamp") or "")[:16]))
     return out

@@ -39,7 +39,7 @@ def test_clean_applies_rules():
     assert [r["source"] for r in out] == ["whatsapp"]
     assert set(out[0]) == {"text", "source", "lang", "ai_score", "date"}
     assert out[0]["lang"] == "en" and out[0]["date"] == "2026-01-01T00:00"
-    assert stats == {"min_words": 1, "url_heavy": 1, "dupe": 1, "ai_score": 1}
+    assert stats == {"min_words": 1, "url_heavy": 1, "dupe": 1, "template": 0, "ai_score": 1}
 
 
 def test_split_holdout_is_deterministic():
@@ -63,3 +63,11 @@ def test_cli_ingest_writes_corpus(tmp_path):
     assert rc == 0
     assert (tmp_path / "d" / "corpus.jsonl").exists() and (tmp_path / "d" / "holdout.jsonl").exists()
     assert read_jsonl(tmp_path / "d" / "corpus.jsonl")
+
+
+def test_clean_drops_templated_prompts_sharing_a_long_prefix():
+    tpl = "These entity mentions may or may not refer to the same real thing, here is the list:"
+    paras = [Para(f"{tpl} item {i} with some more words to pass the minimum", "claude", "") for i in range(6)]
+    paras.append(Para(HUMAN, "claude", ""))
+    out, stats = clean(paras, load_config(FIX / "cfg.toml"))
+    assert [r["text"] for r in out] == [HUMAN] and stats["template"] == 6

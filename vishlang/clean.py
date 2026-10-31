@@ -2,6 +2,7 @@
 import json
 import random
 import re
+from collections import Counter
 from pathlib import Path
 
 from .detect import ai_score
@@ -10,6 +11,12 @@ from .ingest import Para
 _DE = {"und", "der", "die", "das", "ich", "nicht", "ist", "auch", "mit", "ein", "eine", "wir", "du", "dass", "aber"}
 _EN = {"the", "and", "is", "to", "of", "that", "you", "with", "for", "this", "not", "are", "but", "have"}
 _WORD = re.compile(r"[\wÄÖÜäöüß']+")
+TEMPLATE_REPEATS = 5
+TEMPLATE_PREFIX_WORDS = 8
+
+
+def _prefix(text: str) -> str:
+    return " ".join(text.lower().split()[:TEMPLATE_PREFIX_WORDS])
 
 
 def chunk(text: str, max_words: int = 150) -> list[str]:
@@ -47,10 +54,15 @@ def _url_heavy(text: str) -> bool:
 def clean(paras: list[Para], cfg: dict) -> tuple[list[dict], dict]:
     """Return (records, stats). Records: {text, source, lang, ai_score, date}."""
     c = cfg["clean"]
-    stats = {"min_words": 0, "url_heavy": 0, "dupe": 0, "ai_score": 0}
+    stats = {"min_words": 0, "url_heavy": 0, "dupe": 0, "template": 0, "ai_score": 0}
     seen: set[str] = set()
     out: list[dict] = []
+    # Programmatic prompts share a long opening; a human rarely starts 6+ messages identically.
+    prefix_counts = Counter(_prefix(p.text) for p in paras)
     for para in paras:
+        if prefix_counts[_prefix(para.text)] > TEMPLATE_REPEATS:
+            stats["template"] += 1
+            continue
         for text in chunk(para.text):
             if len(text.split()) < c["min_words"]:
                 stats["min_words"] += 1
