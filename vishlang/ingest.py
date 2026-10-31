@@ -234,12 +234,13 @@ def parse_chatgpt(path: Path) -> list[Para]:
 
 # ---------------------------------------------------------------- claude code history
 _TAG_BLOCKS = re.compile(r"<(system-reminder|pasted_content)\b[^>]*>.*?</\1>", re.S)
-_CMD_PREFIX = ("<command-", "<local-command")
 
 
-def parse_claude(path: Path) -> list[Para]:
-    """Prompts Vishi typed into Claude Code. Tool results, subagent sidechains and
-    slash-command wrappers are dropped; harness tags are stripped."""
+def parse_claude(path: Path, max_words: int = 200) -> list[Para]:
+    """Prompts Vishi typed into Claude Code. Tool results, subagent sidechains,
+    slash-command wrappers and harness notifications (anything starting with a tag)
+    are dropped; inline harness tags are stripped; prompts over max_words are
+    treated as pasted material, not voice, and dropped."""
     out = []
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
@@ -262,7 +263,7 @@ def parse_claude(path: Path) -> list[Para]:
             else:
                 continue
             text = _TAG_BLOCKS.sub("", text).strip()
-            if not text or text.startswith(_CMD_PREFIX):
+            if not text or text.startswith("<") or len(text.split()) > max_words:
                 continue
             out.append(Para(text, "claude", (o.get("timestamp") or "")[:16]))
     return out

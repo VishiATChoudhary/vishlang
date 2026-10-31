@@ -29,3 +29,10 @@ def test_claude_path_only_takes_session_files(tmp_path):
     cfg["sources"]["claude"]["path"] = str(FIX / "claude")
     paras = ingest_dir(tmp_path / "raw", cfg)
     assert {p.source for p in paras} == {"claude"}
+
+
+def test_parse_claude_drops_harness_messages_and_long_pastes():
+    texts = [p.text for p in parse_claude(FIX / "claude" / "session.jsonl")]
+    assert not any(t.startswith("<") for t in texts)
+    assert not any("pasted answer text" in t for t in texts)
+    assert len(texts) == 2
