@@ -105,6 +105,6 @@ def build_system(mode: str, corpus: Path = Path("data/corpus.jsonl")) -> str:
     return fewshot_system(examples)
 
 
-def mcp_add_command(cli: str = "claude") -> str:
+def mcp_add_command(cli: str = "claude", exe: str = "vishlang") -> str:
     scope = " -s user" if cli == "claude" else ""
-    return f"{cli} mcp add{scope} vishlang -- vishlang serve"
+    return f"{cli} mcp add{scope} vishlang -- {exe} serve"

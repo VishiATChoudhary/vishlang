@@ -18,6 +18,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["vishlang"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"skills/vishlang" = "vishlang/skill"
+
 [tool.pytest.ini_options]
 markers = ["slow: needs the real model"]
 testpaths = ["tests"]

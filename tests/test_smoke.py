@@ -24,7 +24,7 @@ def test_fixtures_flow_to_pairs_with_fake_lm(tmp_path):
 
 def test_skill_and_readme_exist():
     root = Path(__file__).resolve().parent.parent
-    skill = (root / "skill" / "SKILL.md").read_text()
+    skill = (root / "skills" / "vishlang" / "SKILL.md").read_text()
     assert skill.startswith("---\nname: vishlang\n") and "rewrite" in skill
     readme = (root / "README.md").read_text()
     for must in ["vishlang ingest", "vishlang pairs --sample 20", "vishlang test --mode fewshot",
