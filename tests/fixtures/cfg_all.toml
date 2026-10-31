@@ -3,3 +3,5 @@ names = ["Vishi"]
 emails = ["vishisht@invertix.ai"]
 [sources.chatgpt]
 weight = 0.0
+[sources.claude]
+path = ""

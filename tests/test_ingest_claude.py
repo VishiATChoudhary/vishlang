@@ -21,3 +21,11 @@ def test_ingest_dir_walks_claude_path(tmp_path):
     cfg["sources"]["claude"]["path"] = str(FIX / "claude")
     paras = ingest_dir(tmp_path / "raw", cfg)
     assert [p.source for p in paras] == ["claude", "claude"]
+
+
+def test_claude_path_only_takes_session_files(tmp_path):
+    (tmp_path / "raw").mkdir()
+    cfg = load_config(FIX / "cfg_all.toml")
+    cfg["sources"]["claude"]["path"] = str(FIX / "claude")
+    paras = ingest_dir(tmp_path / "raw", cfg)
+    assert {p.source for p in paras} == {"claude"}

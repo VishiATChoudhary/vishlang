@@ -289,13 +289,13 @@ def _files(root: Path):
 
 def ingest_dir(raw: Path, cfg: dict) -> list[Para]:
     out: list[Para] = []
-    roots = [raw]
+    roots = [(raw, None)]
     claude_path = (cfg["sources"].get("claude") or {}).get("path") or ""
     if claude_path and float(cfg["sources"]["claude"].get("weight", 1.0)) > 0:
-        roots.append(Path(claude_path).expanduser())
-    for path in (p for r in roots for p in _files(r)):
+        roots.append((Path(claude_path).expanduser(), "claude"))  # only session files from there
+    for path, only in ((p, only) for r, only in roots for p in _files(r)):
         fmt = detect_format(path)
-        if fmt is None:
+        if fmt is None or (only and fmt != only):
             continue
         src = cfg["sources"].get(fmt, {"weight": 1.0, "before": ""})
         if float(src.get("weight", 1.0)) <= 0:

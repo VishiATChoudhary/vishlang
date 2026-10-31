@@ -5,3 +5,5 @@ emails = ["vishisht@invertix.ai"]
 weight = 0.0
 [sources.whatsapp]
 before = "2026-10"
+[sources.claude]
+path = ""
