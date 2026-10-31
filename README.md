@@ -48,6 +48,7 @@ uv run vishlang pairs                 # back-translate the whole corpus (hours, 
 uv run vishlang test --mode fewshot   # step 0: blind A/B with no training at all
 uv run vishlang train                 # QLoRA via mlx_lm.lora -> adapters/latest
 uv run vishlang test                  # blind A/B with the adapter
+uv run vishlang rewrite "some draft"  # one-off rewrite from the terminal (or pipe text on stdin)
 uv run vishlang serve --print-config  # prints the `claude mcp add ...` line
 ```
 

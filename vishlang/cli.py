@@ -1,4 +1,4 @@
-"""vishlang command line: ingest | pairs | train | serve | test | build."""
+"""vishlang command line: ingest | pairs | train | serve | test | build | rewrite."""
 import argparse
 from collections import Counter
 from pathlib import Path
@@ -87,6 +87,16 @@ def _test(args, cfg) -> int:
     return 0 if r["passed"] else 1
 
 
+def _rewrite(args, cfg) -> int:
+    import sys
+
+    from .serve import build_system, rewrite_text
+
+    text = " ".join(args.text) if args.text else sys.stdin.read()
+    adapter = args.adapter if args.mode == "lora" else None
+    print(rewrite_text(_lm(cfg, adapter), text.strip(), build_system(args.mode)))
+    return 0
+
 def _build(args, cfg) -> int:
     for fn, ns in ((_ingest, {"raw": "data/raw", "out": "data"}),
                    (_pairs, {"corpus": "data/corpus.jsonl", "out": "data/pairs", "sample": 0, "limit": None}),
@@ -132,6 +142,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--holdout", default="data/holdout.jsonl")
     p.add_argument("--n", type=int, default=20)
     p.set_defaults(fn=_test)
+
+    p = sub.add_parser("rewrite", help="rewrite text (args or stdin) in your voice, print it")
+    p.add_argument("text", nargs="*")
+    p.add_argument("--mode", choices=["lora", "fewshot"], default="lora")
+    p.add_argument("--adapter", default="adapters/latest")
+    p.set_defaults(fn=_rewrite)
 
     p = sub.add_parser("build", help="ingest, pairs, train in sequence")
     p.add_argument("--iters", type=int, default=1000)
