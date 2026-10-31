@@ -1,0 +1,23 @@
+[project]
+name = "vishlang"
+version = "0.1.0"
+description = "Local voice model: fine-tune a small LLM on your own writing and serve rewrite() over MCP"
+requires-python = ">=3.12"
+dependencies = ["mlx-lm", "mcp"]
+
+[project.scripts]
+vishlang = "vishlang.cli:main"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vishlang"]
+
+[tool.pytest.ini_options]
+markers = ["slow: needs the real model"]
+testpaths = ["tests"]
