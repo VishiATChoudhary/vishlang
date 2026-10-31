@@ -15,7 +15,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 echo "installing vishlang..."
 # archive URL, not git+: a clean Mac has no git until the Xcode command line tools are installed
-uv tool install --force --python 3.12 "vishlang @ https://github.com/VishiATChoudhary/vishlang/archive/refs/heads/main.zip"
+uv tool install --force --refresh --python 3.12 "vishlang @ https://github.com/VishiATChoudhary/vishlang/archive/refs/heads/main.zip"
 uv tool update-shell >/dev/null 2>&1 || true
 
 "$HOME/.local/bin/vishlang" install

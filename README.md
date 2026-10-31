@@ -163,6 +163,7 @@ M5 Macs on macOS 26.0 or 26.1: MLX ships kernels that OS cannot compile
 
 ```bash
 git clone https://github.com/VishiATChoudhary/vishlang && cd vishlang
+# re-run install.sh any time to update; it refreshes the cached archive
 uv sync && uv run pytest
 VISHLANG_SLOW=1 uv run pytest   # also loads the real model once
 ```
