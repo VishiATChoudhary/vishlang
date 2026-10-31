@@ -1,0 +1,111 @@
+"""Parse raw exports into paragraphs written by the configured author."""
+import csv
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass
+class Para:
+    text: str
+    source: str
+    date: str  # ISO "YYYY-MM-DDTHH:MM" or ""
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8-sig", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+
+
+# [30.10.26, 14:03:12] Name: msg      (iOS)
+# 30/10/2026, 14:03 - Name: msg       (Android)
+_WA_LINE = re.compile(
+    r"^‎?\[?(?P<d>\d{1,2})[./](?P<m>\d{1,2})[./](?P<y>\d{2,4}),? (?P<H>\d{1,2}):(?P<M>\d{2})(?::\d{2})?\s?(?P<ap>[AaPp][Mm])?\]?(?: -)? (?P<name>[^:]+?): (?P<msg>.*)$"
+)
+_WA_SKIP = re.compile(
+    r"(<Media omitted>|<Medien ausgeschlossen>|\b(image|video|audio|sticker|document|GIF|Contact card) omitted\b|"
+    r"Messages and calls are end-to-end encrypted|This message was deleted|You deleted this message|"
+    r"Bild weggelassen|Video weggelassen|Nachricht wurde gelöscht)",
+    re.I,
+)
+
+
+def _wa_minutes(d: str, m: str, y: str, H: str, M: str, ap: str | None) -> tuple[str, int]:
+    year = int(y) + (2000 if len(y) == 2 else 0)
+    hour = int(H)
+    if ap:
+        hour = hour % 12 + (12 if ap.lower() == "pm" else 0)
+    iso = f"{year:04d}-{int(m):02d}-{int(d):02d}T{hour:02d}:{int(M):02d}"
+    # minute index good enough for merge windows inside one day
+    stamp = ((year * 12 + int(m)) * 31 + int(d)) * 1440 + hour * 60 + int(M)
+    return iso, stamp
+
+
+def parse_whatsapp(path: Path, names: set[str], merge_minutes: int = 2) -> list[Para]:
+    out: list[Para] = []
+    last_stamp: int | None = None
+    cur: Para | None = None   # message being built (continuation lines)
+    cur_mine = False
+    cur_stamp = 0
+
+    def flush():
+        nonlocal cur, last_stamp
+        if cur is None or not cur_mine:
+            cur = None
+            return
+        text = cur.text.strip()
+        if not text or _WA_SKIP.search(text):
+            cur = None
+            return
+        if out and last_stamp is not None and cur_stamp - last_stamp <= merge_minutes:
+            out[-1].text += "\n" + text
+        else:
+            out.append(Para(text, "whatsapp", cur.date))
+        last_stamp = cur_stamp
+        cur = None
+
+    for line in read_text(path).split("\n"):
+        m = _WA_LINE.match(line)
+        if m:
+            flush()
+            name = m.group("name").strip().lstrip("‎")
+            iso, stamp = _wa_minutes(m.group("d"), m.group("m"), m.group("y"), m.group("H"), m.group("M"), m.group("ap"))
+            cur = Para(m.group("msg").lstrip("‎"), "whatsapp", iso)
+            cur_mine = name in names
+            cur_stamp = stamp
+        elif cur is not None:
+            cur.text += "\n" + line
+    flush()
+    return out
+
+
+def parse_docs(path: Path) -> list[Para]:
+    text = read_text(path).strip()
+    return [Para(text, "docs", "")] if text else []
+
+
+def parse_linkedin(path: Path) -> list[Para]:
+    out = []
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            text = (row.get("ShareCommentary") or "").strip()
+            if text:
+                out.append(Para(text, "linkedin", (row.get("Date") or "")[:16].replace(" ", "T")))
+    return out
+
+
+def detect_format(path: Path) -> str | None:
+    if not path.is_file():
+        return None
+    suffix = path.suffix.lower()
+    if suffix == ".mbox":
+        return "gmail"
+    if path.name == "conversations.json":
+        return "chatgpt"
+    if path.name == "Shares.csv":
+        return "linkedin"
+    if suffix in (".txt", ".md"):
+        head = read_text(path).lstrip().split("\n", 1)[0]
+        if suffix == ".txt" and _WA_LINE.match(head):
+            return "whatsapp"
+        return "docs"
+    return None

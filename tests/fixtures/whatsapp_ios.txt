@@ -1,0 +1,5 @@
+[30.10.26, 14:03:12] Vishi: ok so the plan is we ship the parser first
+[30.10.26, 14:03:40] Vishi: then the detector, then we look at the data together
+[30.10.26, 14:10:01] Anna: sounds good
+[30.10.26, 14:11:00] Vishi: ‎image omitted
+[30.10.26, 16:00:00] Vishi: unrelated later message about dinner plans tonight

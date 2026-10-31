@@ -1,0 +1,4 @@
+30/10/2026, 14:03 - Vishi: first line of a long message
+that continues on the next line without a prefix
+30/10/2026, 14:04 - Anna: <Media omitted>
+30/10/2026, 14:05 - Vishi: <Media omitted>
