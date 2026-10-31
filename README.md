@@ -12,6 +12,8 @@ uv sync
 
 Needs Python 3.12+, `uv`, and roughly 16 GB of unified memory for the default 4B base model.
 
+M5 Macs on macOS 26.0 or 26.1: MLX ships kernels that OS cannot compile ([mlx#4525](https://github.com/ml-explore/mlx/issues/4525)). vishlang sets `MLX_METAL_GPU_ARCH=applegpu_g16g` automatically, which works but skips the M5 neural accelerators. Update to macOS 26.2+ for full speed.
+
 ## 1. Get your exports
 
 Drop everything into `data/raw/` (any filename, subfolders fine). Formats are detected automatically.
