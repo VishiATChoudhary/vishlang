@@ -1,0 +1,7 @@
+[author]
+names = ["Vishi"]
+emails = ["vishisht@invertix.ai"]
+[sources.chatgpt]
+weight = 0.0
+[sources.whatsapp]
+before = "2026-10"

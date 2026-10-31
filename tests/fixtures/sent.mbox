@@ -1,0 +1,52 @@
+From 1@xxx Tue Oct 28 09:30:00 2026
+From: Vishi <vishisht@invertix.ai>
+To: Anna <anna@x.com>
+Subject: Re: parser notes
+Date: Tue, 28 Oct 2026 09:30:00 +0100
+X-Gmail-Labels: Sent
+Content-Type: text/plain; charset="utf-8"
+
+Thanks for the notes, I went through them on the train and most of it is already handled by the merge window.
+
+The one thing I want to change is how we treat continuation lines, right now they get glued to the wrong message when the export has a blank line in between.
+
+On Tue, Oct 28, 2026 at 9:00 AM Anna <anna@x.com> wrote:
+> here are my notes on the parser
+> second line of quote
+-- 
+Vishi
+Invertix
+
+From 2@xxx Tue Oct 28 10:00:00 2026
+From: Anna <anna@x.com>
+To: Vishi <vishisht@invertix.ai>
+Subject: parser notes
+Date: Tue, 28 Oct 2026 10:00:00 +0100
+Content-Type: text/plain; charset="utf-8"
+
+This one was written by Anna and must never end up in the corpus at all.
+
+From 3@xxx Tue Oct 28 11:00:00 2026
+From: Vishi <vishisht@invertix.ai>
+To: Anna <anna@x.com>
+Subject: draft thing
+Date: Tue, 28 Oct 2026 11:00:00 +0100
+X-Gmail-Labels: Draft
+Content-Type: text/plain; charset="utf-8"
+
+This is an unfinished draft that should be skipped because of the label.
+
+From 4@xxx Tue Oct 28 12:00:00 2026
+From: Vishi <vishisht@invertix.ai>
+To: Anna <anna@x.com>
+Subject: html only
+Date: Tue, 28 Oct 2026 12:00:00 +0100
+X-Gmail-Labels: Sent
+Content-Type: multipart/alternative; boundary="b1"
+
+--b1
+Content-Type: text/html; charset="utf-8"
+
+<html><body><p>Hello Anna,</p><p>Thanks for the notes on the parser, I will go through them tonight.</p></body></html>
+--b1--
+

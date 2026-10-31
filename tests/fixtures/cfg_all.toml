@@ -1,0 +1,5 @@
+[author]
+names = ["Vishi"]
+emails = ["vishisht@invertix.ai"]
+[sources.chatgpt]
+weight = 0.0

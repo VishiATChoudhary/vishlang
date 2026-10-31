@@ -1,7 +1,14 @@
 """Parse raw exports into paragraphs written by the configured author."""
 import csv
+import email
+import email.utils
+import html
+import json
+import mailbox
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 
 
@@ -109,3 +116,139 @@ def detect_format(path: Path) -> str | None:
             return "whatsapp"
         return "docs"
     return None
+
+
+# ---------------------------------------------------------------- gmail mbox
+
+_CUT = re.compile(
+    r"^(On .+wrote:\s*|Am .+schrieb.*:\s*|-- ?|_{5,}|From: .*|Von: .*|Sent from my.*|Gesendet von .*)$"
+)
+
+
+class _Text(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.parts: list[str] = []
+        self._skip = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style"):
+            self._skip += 1
+        if tag == "br":
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style"):
+            self._skip = max(0, self._skip - 1)
+        if tag in ("p", "div", "li", "h1", "h2", "h3", "tr"):
+            self.parts.append("\n\n")
+
+    def handle_data(self, data):
+        if not self._skip:
+            self.parts.append(data)
+
+
+def _html_to_text(s: str) -> str:
+    p = _Text()
+    p.feed(s)
+    return html.unescape("".join(p.parts))
+
+
+def _body(msg) -> str:
+    plain, rich = None, None
+    for part in msg.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+        ctype = part.get_content_type()
+        if ctype not in ("text/plain", "text/html"):
+            continue
+        payload = part.get_payload(decode=True) or b""
+        text = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        if ctype == "text/plain" and plain is None:
+            plain = text
+        elif ctype == "text/html" and rich is None:
+            rich = text
+    if plain is not None:
+        return plain
+    return _html_to_text(rich) if rich is not None else ""
+
+
+def _strip_reply(body: str) -> str:
+    kept = []
+    for line in body.replace("\r\n", "\n").split("\n"):
+        if _CUT.match(line.strip()):
+            break
+        if line.lstrip().startswith(">"):
+            continue
+        kept.append(line.rstrip())
+    text = "\n".join(kept)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def parse_mbox(path: Path, emails: set[str]) -> list[Para]:
+    emails = {e.lower() for e in emails}
+    out = []
+    for msg in mailbox.mbox(str(path)):
+        sender = email.utils.parseaddr(msg.get("From", ""))[1].lower()
+        if sender not in emails or "Draft" in (msg.get("X-Gmail-Labels") or ""):
+            continue
+        text = _strip_reply(_body(msg))
+        if not text:
+            continue
+        date = ""
+        try:
+            date = email.utils.parsedate_to_datetime(msg.get("Date", "")).strftime("%Y-%m-%dT%H:%M")
+        except (TypeError, ValueError):
+            pass
+        out.append(Para(text, "gmail", date))
+    return out
+
+
+# ---------------------------------------------------------------- chatgpt
+def parse_chatgpt(path: Path) -> list[Para]:
+    out = []
+    data = json.loads(read_text(path))
+    for conv in data if isinstance(data, list) else [data]:
+        for node in (conv.get("mapping") or {}).values():
+            m = (node or {}).get("message") or {}
+            if (m.get("author") or {}).get("role") != "user":
+                continue
+            content = m.get("content") or {}
+            if content.get("content_type") != "text":
+                continue
+            text = "\n".join(p for p in content.get("parts") or [] if isinstance(p, str)).strip()
+            if not text:
+                continue
+            ts = m.get("create_time")
+            date = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M") if ts else ""
+            out.append(Para(text, "chatgpt", date))
+    return out
+
+
+# ---------------------------------------------------------------- directory
+_PARSERS = {
+    "whatsapp": lambda p, cfg: parse_whatsapp(p, set(cfg["author"]["names"]), cfg["clean"]["merge_minutes"]),
+    "gmail": lambda p, cfg: parse_mbox(p, set(cfg["author"]["emails"])),
+    "docs": lambda p, cfg: parse_docs(p),
+    "chatgpt": lambda p, cfg: parse_chatgpt(p),
+    "linkedin": lambda p, cfg: parse_linkedin(p),
+}
+
+
+def ingest_dir(raw: Path, cfg: dict) -> list[Para]:
+    out: list[Para] = []
+    for path in sorted(raw.rglob("*")):
+        if not path.is_file() or any(part.startswith(".") for part in path.relative_to(raw).parts):
+            continue
+        fmt = detect_format(path)
+        if fmt is None:
+            continue
+        src = cfg["sources"].get(fmt, {"weight": 1.0, "before": ""})
+        if float(src.get("weight", 1.0)) <= 0:
+            continue
+        before = src.get("before") or ""
+        for para in _PARSERS[fmt](path, cfg):
+            if before and para.date and para.date >= before:
+                continue
+            out.append(para)
+    return out
