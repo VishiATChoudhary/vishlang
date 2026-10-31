@@ -110,3 +110,11 @@ def test_build_pairs_survives_partial_cache_line(tmp_path):
     lm = FakeLM(lambda s, u: "n " + u + ".")
     out = build_pairs(corpus, pairs, lm, CFG)
     assert out["train"] + out["valid"] + out["test"] == 5 and len(lm.calls) == 5
+
+
+def test_usable_pair_rejects_assistant_replies():
+    from vishlang.pairs import usable_pair
+    orig = "Bruh but I added the right email and the person got nothing"
+    assert usable_pair("Hmm, I'm not entirely sure what you mean. Could you clarify your request so I can better assist you?", orig) is False
+    assert usable_pair("I apologize for the confusion, it appears the correct email was entered but nothing arrived.", orig) is False
+    assert usable_pair("I entered the correct email address, yet the recipient did not receive anything.", orig) is True

@@ -6,6 +6,7 @@ trained on the reverse direction. Inverse-transfer data augmentation (Shao et al
 import hashlib
 import json
 import random
+import re
 from pathlib import Path
 
 from .clean import read_jsonl, write_jsonl  # noqa: F401  (read_jsonl kept for callers)
@@ -24,13 +25,16 @@ def neutralise(lm, text: str) -> str:
 
 _TERMINAL = tuple(".!?\"'\u201d)")
 RATIO_MIN, RATIO_MAX = 0.5, 2.5
+# A 4B model sometimes answers a slangy fragment instead of rewriting it.
+_REPLY = re.compile(r"(could you (please )?clarify|what you mean|assist you|i apologi[sz]e|i'?m not (entirely )?sure what|"
+                    r"let me know if|happy to help|as an ai)", re.I)
 
 
 def usable_pair(neutral: str, original: str) -> bool:
     """Reject neutrals that were cut off or ran away; both would teach fact invention."""
     if not neutral or normalize(neutral) == normalize(original):
         return False  # identity pairs teach nothing
-    if not neutral.rstrip().endswith(_TERMINAL):
+    if not neutral.rstrip().endswith(_TERMINAL) or _REPLY.search(neutral):
         return False
     ratio = len(neutral.split()) / max(1, len(original.split()))
     return RATIO_MIN <= ratio <= RATIO_MAX
