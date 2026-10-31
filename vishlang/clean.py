@@ -19,6 +19,10 @@ def _prefix(text: str, words: int) -> str:
     return " ".join(text.lower().split()[:words])
 
 
+def _suffix(text: str, words: int) -> str:
+    return " ".join(text.lower().split()[-words:])
+
+
 def _short_lines(block: str) -> bool:
     """Signature-like: most lines are 4 words or fewer (name, title, phone, URL)."""
     lines = [l for l in block.split("\n") if l.strip()]
@@ -77,9 +81,11 @@ def clean(paras: list[Para], cfg: dict) -> tuple[list[dict], dict]:
     seen: set[str] = set()
     out: list[dict] = []
     # Programmatic prompts share an opening; a human rarely starts many messages identically.
-    counts = {w: Counter(_prefix(p.text, w) for p in paras) for w, _ in TEMPLATE_RULES}
+    heads = {w: Counter(_prefix(p.text, w) for p in paras) for w, _ in TEMPLATE_RULES}
+    tails = {w: Counter(_suffix(p.text, w) for p in paras) for w, _ in TEMPLATE_RULES}
     for para in paras:
-        if any(counts[w][_prefix(para.text, w)] > limit for w, limit in TEMPLATE_RULES):
+        if any(heads[w][_prefix(para.text, w)] > limit or tails[w][_suffix(para.text, w)] > limit
+               for w, limit in TEMPLATE_RULES):
             stats["template"] += 1
             continue
         body = trim_frame(para.text) if para.source != "whatsapp" else para.text

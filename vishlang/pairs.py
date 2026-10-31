@@ -9,7 +9,8 @@ import random
 from pathlib import Path
 
 from .clean import read_jsonl, write_jsonl  # noqa: F401  (read_jsonl kept for callers)
-from .prompts import NEUTRALISE_SYSTEM, REWRITE_SYSTEM
+from .clean import normalize
+from .prompts import NEUTRALISE_SYSTEM, REWRITE_SYSTEM, neutralise_user
 
 
 def neutral_budget(text: str) -> int:
@@ -18,7 +19,7 @@ def neutral_budget(text: str) -> int:
 
 
 def neutralise(lm, text: str) -> str:
-    return lm.chat(NEUTRALISE_SYSTEM, text, max_tokens=neutral_budget(text), temp=0.3)
+    return lm.chat(NEUTRALISE_SYSTEM, neutralise_user(text), max_tokens=neutral_budget(text), temp=0.7)
 
 
 _TERMINAL = tuple(".!?\"'\u201d)")
@@ -27,8 +28,8 @@ RATIO_MIN, RATIO_MAX = 0.5, 2.5
 
 def usable_pair(neutral: str, original: str) -> bool:
     """Reject neutrals that were cut off or ran away; both would teach fact invention."""
-    if not neutral or neutral.strip() == original.strip():
-        return False
+    if not neutral or normalize(neutral) == normalize(original):
+        return False  # identity pairs teach nothing
     if not neutral.rstrip().endswith(_TERMINAL):
         return False
     ratio = len(neutral.split()) / max(1, len(original.split()))

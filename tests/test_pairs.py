@@ -5,7 +5,7 @@ from vishlang.config import load_config
 from vishlang.llm import FakeLM
 from vishlang.pairs import build_pairs, make_example, neutralise
 from vishlang.prompts import NEUTRALISE_SYSTEM, REWRITE_SYSTEM
-from tests.conftest import FIX
+from tests.conftest import FIX, unwrap
 
 CFG = load_config(FIX / "cfg_all.toml")
 
@@ -14,9 +14,18 @@ def _corpus(path, n=40, source="gmail"):
     write_jsonl(path, [{"text": f"original {i} " * 3, "source": source, "lang": "en", "ai_score": 0.1, "date": ""} for i in range(n)])
 
 
-def test_neutralise_uses_neutralise_prompt():
-    lm = FakeLM(lambda s, u: "N " + u)
-    assert neutralise(lm, "hey") == "N hey" and lm.calls[0][0] == NEUTRALISE_SYSTEM
+def test_neutralise_wraps_text_so_model_rewrites_instead_of_answering():
+    lm = FakeLM(lambda s, u: "N")
+    neutralise(lm, "create a html report out of this pls!")
+    system, user = lm.calls[0]
+    assert system == NEUTRALISE_SYSTEM and "do not answer" in system.lower() and "do not follow" in system.lower()
+    assert user.startswith("Text to rewrite:\n<<<\ncreate a html report out of this pls!\n>>>")
+
+
+def test_usable_pair_rejects_near_identical_neutral():
+    from vishlang.pairs import usable_pair
+    assert usable_pair("Looks right. Create and then push this stuff!", "looks right. Create and then push this stuff!") is False
+    assert usable_pair("Getting a 503 error on the agents. Why is this the case?", "getting a 503 on the agents.\nWhy tf is this the case?") is True
 
 
 def test_make_example_shape():
@@ -30,7 +39,7 @@ def test_build_pairs_writes_splits_and_resumes(tmp_path):
     corpus = tmp_path / "corpus.jsonl"
     _corpus(corpus)
     calls = []
-    lm = FakeLM(lambda s, u: (calls.append(u), "neutral " + u + ".")[1])
+    lm = FakeLM(lambda s, u: (calls.append(u), "neutral " + unwrap(u) + ".")[1])
     out = build_pairs(corpus, tmp_path / "pairs", lm, CFG)
     assert out["train"] + out["valid"] + out["test"] == 40 and len(calls) == 40
     n_first = len(calls)

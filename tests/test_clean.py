@@ -85,3 +85,11 @@ def test_clean_trims_greeting_signoff_and_signature_from_email():
     mail = f"Hi Anna,\n\n{body}\n\nBest,\nVishi\nInvertix GmbH\n+49 170 0000000\nwww.invertix.ai"
     out, _ = clean([Para(mail, "gmail", "")], load_config(FIX / "cfg.toml"))
     assert [r["text"] for r in out] == [body]
+
+
+def test_clean_drops_scripted_prompts_sharing_a_fixed_ending():
+    tail = "Would you still conclude it, from this evidence alone? Answer with one word, YES or NO. Do not explain."
+    paras = [Para(f"Case {i} cites case {i+1} as precedent and the evidence is now exactly this. {tail}", "claude", "") for i in range(12)]
+    paras.append(Para(HUMAN, "claude", ""))
+    out, stats = clean(paras, load_config(FIX / "cfg.toml"))
+    assert [r["text"] for r in out] == [HUMAN] and stats["template"] == 12

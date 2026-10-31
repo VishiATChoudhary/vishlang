@@ -1,11 +1,12 @@
 from vishlang.blind import run_blind
 from vishlang.llm import FakeLM
+from tests.conftest import unwrap
 
 HOLD = [{"text": f"my text {i} is short and real enough honestly", "source": "gmail"} for i in range(4)]
 
 
 def _lm():
-    return FakeLM(lambda s, u: ("NEUTRAL " + u) if "generic AI assistant" in s else ("MINE " + u))
+    return FakeLM(lambda s, u: ("NEUTRAL " + unwrap(u)) if "generic AI assistant" in s else ("MINE " + u))
 
 
 def test_run_blind_scores_scripted_answers():
@@ -37,7 +38,7 @@ def test_run_blind_shows_both_versions_in_random_order():
 
 
 def test_run_blind_neutralises_with_base_lm_when_given():
-    base = FakeLM(lambda s, u: "NEUTRAL " + u)
+    base = FakeLM(lambda s, u: "NEUTRAL " + unwrap(u))
     tuned = FakeLM(lambda s, u: "MINE " + u)
     run_blind(tuned, HOLD, "rw-sys", n=4, ask=lambda p: "1", base_lm=base)
     assert len(base.calls) == 4 and all("generic AI assistant" in s for s, _ in base.calls)

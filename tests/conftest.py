@@ -13,3 +13,10 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip)
+
+
+def unwrap(user: str) -> str:
+    """What a real model sees as the text to rewrite: strip the neutralise_user() wrapper."""
+    if "<<<\n" in user and "\n>>>" in user:
+        return user.split("<<<\n", 1)[1].rsplit("\n>>>", 1)[0]
+    return user

@@ -6,7 +6,7 @@ from vishlang.cli import main
 from vishlang.config import load_config
 from vishlang.llm import FakeLM
 from vishlang.pairs import build_pairs
-from tests.conftest import FIX
+from tests.conftest import FIX, unwrap
 
 
 def test_fixtures_flow_to_pairs_with_fake_lm(tmp_path):
@@ -18,7 +18,7 @@ def test_fixtures_flow_to_pairs_with_fake_lm(tmp_path):
     assert corpus and all(r["source"] != "chatgpt" for r in corpus)
     assert {r["source"] for r in corpus} >= {"whatsapp", "gmail", "docs", "linkedin", "claude"}
     out = build_pairs(tmp_path / "d" / "corpus.jsonl", tmp_path / "d" / "pairs",
-                      FakeLM(lambda s, u: "n " + u), load_config(FIX / "cfg_all.toml"))
+                      FakeLM(lambda s, u: "n " + unwrap(u)), load_config(FIX / "cfg_all.toml"))
     assert out["train"] >= 1
 
 
