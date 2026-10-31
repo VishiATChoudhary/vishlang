@@ -2,7 +2,7 @@ import asyncio
 
 from vishlang.cli import main
 from vishlang.llm import FakeLM
-from vishlang.serve import make_server, rewrite_text, split_blocks
+from vishlang.serve import ProfileRouter, make_server, rewrite_text, split_blocks
 
 DRAFT = """Subject: Parser update
 
@@ -53,13 +53,32 @@ def test_rewrite_text_strips_preamble_from_model():
 
 
 def test_server_exposes_rewrite_tool():
-    srv = make_server(FakeLM(lambda s, u: "Y"), "sys")
+    srv = make_server(ProfileRouter(lambda name: (FakeLM(lambda s, u: "Y"), "sys")))
     tools = asyncio.run(srv.list_tools())
     assert [t.name for t in tools] == ["rewrite"]
-    assert "Vishi's voice" in tools[0].description
+    assert "profile" in tools[0].description
+    assert "profile" in tools[0].input_schema["properties"]
 
 
 def test_print_config(capsys):
-    assert main(["serve", "--mode", "fewshot", "--print-config"]) == 0
-    out = capsys.readouterr().out.strip()
-    assert out.startswith("claude mcp add -s user vishlang -- uv --directory ") and out.endswith("run vishlang serve --mode fewshot")
+    assert main(["serve", "--print-config"]) == 0
+    assert capsys.readouterr().out.strip() == "claude mcp add -s user vishlang -- vishlang serve"
+
+
+def test_router_caches_per_profile_and_reports_untrained():
+    loads = []
+
+    def load(name):
+        loads.append(name)
+        if name == "cold":
+            return None
+        return FakeLM(lambda s, u: name.upper() + " " + u), "sys"
+
+    r = ProfileRouter(load, default="default", available=lambda: ["default", "work", "cold"])
+    long = "one two three four five six seven eight nine ten."
+    assert r.rewrite(long) == "DEFAULT " + long
+    assert r.rewrite(long, "work") == "WORK " + long
+    assert r.rewrite(long, "work") == "WORK " + long
+    assert loads == ["default", "work"]
+    msg = r.rewrite(long, "cold")
+    assert msg.startswith("vishlang: profile 'cold' is not trained") and "default" in msg and "work" in msg

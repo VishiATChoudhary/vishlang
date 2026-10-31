@@ -54,15 +54,43 @@ def rewrite_text(lm, text: str, system: str) -> str:
     return "".join(out)
 
 
-def make_server(lm, system: str):
+class ProfileRouter:
+    """One LM per profile, loaded on first use. load(name) returns (lm, system) or None if untrained."""
+
+    def __init__(self, load, default: str = "default", available=None):
+        self.load, self.default = load, default
+        self.available = available or self._profiles_on_disk
+        self.cache: dict[str, tuple] = {}
+
+    @staticmethod
+    def _profiles_on_disk() -> list[str]:
+        from .paths import Profile, home
+
+        root = home() / "profiles"
+        return sorted(p.name for p in root.iterdir() if p.is_dir() and Profile.load(p.name).trained) if root.is_dir() else []
+
+    def rewrite(self, text: str, profile: str | None = None) -> str:
+        name = profile or self.default
+        if name not in self.cache:
+            self.cache[name] = self.load(name)
+        if self.cache[name] is None:
+            del self.cache[name]
+            have = ", ".join(self.available()) or "none"
+            return f"vishlang: profile '{name}' is not trained. Trained profiles: {have}. Run `vishlang --profile {name} build`."
+        lm, system = self.cache[name]
+        return rewrite_text(lm, text, system)
+
+
+def make_server(router: ProfileRouter):
     from mcp.server.mcpserver import MCPServer  # mcp 2.x name for FastMCP
 
     mcp = MCPServer("vishlang")
 
     @mcp.tool()
-    def rewrite(text: str) -> str:
-        """Rewrite text in Vishi's voice. Keeps facts, structure and language; changes only tone and wording."""
-        return rewrite_text(lm, text, system)
+    def rewrite(text: str, profile: str = "") -> str:
+        """Rewrite text in the user's own voice. Keeps facts, structure and language; changes only tone
+        and wording. profile picks a trained tone (run `vishlang profiles` to list); empty = default."""
+        return router.rewrite(text, profile or None)
 
     return mcp
 
@@ -77,6 +105,6 @@ def build_system(mode: str, corpus: Path = Path("data/corpus.jsonl")) -> str:
     return fewshot_system(examples)
 
 
-def mcp_add_command(mode: str, project_dir: Path | None = None) -> str:
-    root = (project_dir or Path(__file__).resolve().parent.parent)
-    return f"claude mcp add -s user vishlang -- uv --directory {root} run vishlang serve --mode {mode}"
+def mcp_add_command(cli: str = "claude") -> str:
+    scope = " -s user" if cli == "claude" else ""
+    return f"{cli} mcp add{scope} vishlang -- vishlang serve"
