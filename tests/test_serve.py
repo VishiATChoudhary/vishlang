@@ -62,4 +62,4 @@ def test_server_exposes_rewrite_tool():
 def test_print_config(capsys):
     assert main(["serve", "--mode", "fewshot", "--print-config"]) == 0
     out = capsys.readouterr().out.strip()
-    assert out.startswith("claude mcp add vishlang -- uv --directory ") and out.endswith("run vishlang serve --mode fewshot")
+    assert out.startswith("claude mcp add -s user vishlang -- uv --directory ") and out.endswith("run vishlang serve --mode fewshot")

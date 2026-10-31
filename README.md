@@ -62,7 +62,7 @@ mean AI score drops. If few-shot already passes, training is optional.
 ## 4. Use it from Claude Code
 
 ```bash
-eval "$(uv run vishlang serve --print-config)"
+eval "$(uv run vishlang serve --print-config)"   # registers at user scope, available in every project
 ln -s "$(pwd)/skill" ~/.claude/skills/vishlang
 ```
 

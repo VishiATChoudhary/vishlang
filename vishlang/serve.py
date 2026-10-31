@@ -79,4 +79,4 @@ def build_system(mode: str, corpus: Path = Path("data/corpus.jsonl")) -> str:
 
 def mcp_add_command(mode: str, project_dir: Path | None = None) -> str:
     root = (project_dir or Path(__file__).resolve().parent.parent)
-    return f"claude mcp add vishlang -- uv --directory {root} run vishlang serve --mode {mode}"
+    return f"claude mcp add -s user vishlang -- uv --directory {root} run vishlang serve --mode {mode}"
