@@ -25,6 +25,31 @@ def _ingest(args, cfg) -> int:
     return 0
 
 
+def _lm(cfg, adapter: str | None = None):
+    from .llm import LM
+
+    return LM(cfg["model"]["base"], adapter)
+
+
+def _pairs(args, cfg) -> int:
+    import random
+
+    from .clean import read_jsonl
+    from .pairs import build_pairs, neutralise
+
+    lm = _lm(cfg)
+    if args.sample:
+        rows = read_jsonl(Path(args.corpus))
+        for r in random.Random(0).sample(rows, min(args.sample, len(rows))):
+            print("ORIGINAL:", r["text"])
+            print("NEUTRAL :", neutralise(lm, r["text"]))
+            print("-" * 72)
+        return 0
+    counts = build_pairs(Path(args.corpus), Path(args.out), lm, cfg, limit=args.limit)
+    print(" ".join(f"{k}={v}" for k, v in counts.items()))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="vishlang")
     ap.add_argument("--config", default="vishlang.toml")
@@ -34,6 +59,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--raw", default="data/raw")
     p.add_argument("--out", default="data")
     p.set_defaults(fn=_ingest)
+
+    p = sub.add_parser("pairs", help="neutralise corpus with the base model, write train/valid/test jsonl")
+    p.add_argument("--corpus", default="data/corpus.jsonl")
+    p.add_argument("--out", default="data/pairs")
+    p.add_argument("--sample", type=int, default=0, help="only print N original/neutral pairs to eyeball")
+    p.add_argument("--limit", type=int, default=None, help="neutralise at most N new paragraphs this run")
+    p.set_defaults(fn=_pairs)
     return ap
 
 
