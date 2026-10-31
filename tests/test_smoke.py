@@ -27,8 +27,9 @@ def test_skill_and_readme_exist():
     skill = (root / "skills" / "vishlang" / "SKILL.md").read_text()
     assert skill.startswith("---\nname: vishlang\n") and "rewrite" in skill
     readme = (root / "README.md").read_text()
-    for must in ["vishlang ingest", "vishlang pairs --sample 20", "vishlang test --mode fewshot",
-                 "vishlang train", "vishlang serve --print-config", "takeout.google.com", "before"]:
+    for must in ["install.sh", "vishlang init", "vishlang build", "vishlang pairs --sample 20",
+                 "vishlang test --mode fewshot", "vishlang profiles", "vishlang install", "rewrite(text, profile",
+                 "takeout.google.com", "before", "~/.codex/sessions"]:
         assert must in readme, must
 
 
